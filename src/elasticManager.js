@@ -39,7 +39,7 @@ module.exports = class {
   }
 
   async catIndices(indexPattern) {
-    return await client.cat.indices({
+    return await this.client.cat.indices({
       index: `${indexPattern}*`,
       h: ["index", "docs.count"],
       s: "index",
@@ -47,8 +47,32 @@ module.exports = class {
     });
   }
 
+  async reindex(nameIndex, newIndexName, personalization) {
+    return await this.client.reindex({
+      waitForCompletion: false,
+      body: {
+        conflicts: "proceed",
+        source: {
+          index: nameIndex,
+          query: {
+            bool: {
+              must: [
+                { term: { tipoPersonalizacion: personalization } },
+                { term: { activo: true } }
+              ]
+            }
+          }
+        },
+        dest: {
+          index: newIndexName
+        }
+      }
+    });
+  }
+
   async insertLog(
     indexName,
+    newIndexName,
     startTime,
     taskId,
     endTime,
@@ -70,6 +94,7 @@ module.exports = class {
       doc: {
         doc: {
           indexName,
+          newIndexName,
           startTime,
           taskId,
           endTime,

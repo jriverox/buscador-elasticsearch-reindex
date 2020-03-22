@@ -1,9 +1,8 @@
-const Server = require('./server');
-const Utils = require("./utils");
+const Server = require("./server");
 
 (async () => {
   const clusterId = 1;
-  const server = new Server();
-  await server.evaluateTasks(clusterId);
-  console.log("continua");
+  const server = new Server(clusterId);
+
+  await server.execJob();
 })();

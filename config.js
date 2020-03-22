@@ -1,10 +1,10 @@
 module.exports = {
   NAME_INDEX_LOG: "log_reindexacion",
   PERSONALIZATION: [
+    "LAN",
     "ODD",
     "OPM",
     "OPT",
-    "LAN",
     "LMG",
     "HV",
     "SR",
@@ -14,7 +14,7 @@ module.exports = {
   ],
   ELASTICSEARCH: {
     INDEX_PATTERN: "producto_v2",
-    NEW_INDEX_PATTERN: "producto_v3",
+    NEW_INDEX_PATTERN: "producto_v6",
     CLUSTERS: [
       {
         ID: 1,
@@ -38,6 +38,6 @@ module.exports = {
   },
   CAMPAIGNS_BY_COUNTRIES: {
     PR: ["202004", "202005"],
-    DEFAULT: ["202005", "202006"]
+    DEFAULT: ["202003", "202005"]
   }
 };
