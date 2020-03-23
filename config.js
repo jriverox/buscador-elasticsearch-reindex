@@ -1,4 +1,5 @@
 module.exports = {
+  DELAY: 30000,
   NAME_INDEX_LOG: "log_reindexacion",
   PERSONALIZATION: [
     "LAN",
@@ -14,7 +15,7 @@ module.exports = {
   ],
   ELASTICSEARCH: {
     INDEX_PATTERN: "producto_v2",
-    NEW_INDEX_PATTERN: "producto_v6",
+    NEW_INDEX_PATTERN: "producto_v8",
     CLUSTERS: [
       {
         ID: 1,

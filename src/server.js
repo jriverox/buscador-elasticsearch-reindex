@@ -33,30 +33,57 @@ module.exports = class {
             }));
           }
         }
+
+        if (promise.length === 0) continue;
+
         const dataReindex = await Promise.all(promise);
 
-        let complete = true;
-
-        //while (complete) {
         promise = [];
+
         for (let i = 0; i < dataReindex.length; i++) {
           const item = dataReindex[i];
-          console.log("item", item.res.task);
+
+          await this.elasticManager.insertLog(item.indexName, item.newIndexName, item.startTime, item.res.task, "", false, 0, "", false, "");
+
           promise.push(this.elasticManager.tasksGet(item.res.task).then(res => {
-            return res
+            return {
+              indexName: item.indexName,
+              newIndexName: item.newIndexName,
+              startTime: item.startTime,
+              taskId: item.res.task,
+              res: res
+            };
           }));
         }
-        const dataTask = await Promise.all(promise);
-        console.log("dataTask", dataTask);
 
-        //}
+        let completeTask = true;
+
+        while (completeTask) {
+          const dataTask = await Promise.all(promise);
+          let arrayBool = [];
+          for (let i = 0; i < dataTask.length; i++) {
+            const item = dataTask[i];
+            arrayBool.push(item.res.completed);
+          }
+          if (arrayBool.every(x => x)) {
+            completeTask = false;
+            for (let i = 0; i < dataTask.length; i++) {
+              const item = dataTask[i];
+              const endTime = new Date();
+
+              await this.elasticManager.insertLog(item.indexName, item.newIndexName, item.startTime, item.taskId, endTime, true, item.res.task.status.total, "", false, "");
+            }
+          } else {
+            await Utils.backoff(config.DELAY);
+          }
+        }
       }
     });
   }
 
   async evaluateTasksIncluster() {
     try {
-      const body = { query: { term: { completed: true } } };
+      const body = { query: { term: { completed: false } } };
       const response = await this.elasticManager.search(
         config.NAME_INDEX_LOG,
         body
@@ -67,9 +94,10 @@ module.exports = class {
         const taskResponse = await this.evaluateTaskId(taskId);
         await this.elasticManager.insertLog(
           _source.indexName,
+          _source.newIndexName,
           _source.startTime,
           _source.taskId,
-          _source.endTime,
+          new Date(),
           taskResponse.completed,
           _source.docs,
           _source.executionTime,
@@ -88,12 +116,12 @@ module.exports = class {
     let inWhile = true;
     let taskReturn = {};
     while (inWhile) {
-      let task = this.elasticManager.tasksGet(taskId);
+      let task = await this.elasticManager.tasksGet(taskId);
       if (task.completed) {
         taskReturn = task;
-        inWhile = task.completed;
+        inWhile = !task.completed;
       } else {
-        await Utils.backoff(30000);
+        await Utils.backoff(config.DELAY);
       }
     }
     return taskReturn;

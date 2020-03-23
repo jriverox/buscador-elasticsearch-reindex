@@ -88,7 +88,7 @@ module.exports = class {
         update: {
           _index: config.NAME_INDEX_LOG,
           _type: "_doc",
-          _id: taskId
+          _id: newIndexName
         }
       },
       doc: {
