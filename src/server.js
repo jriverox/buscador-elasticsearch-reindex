@@ -13,24 +13,28 @@ module.exports = class {
     const indices = await this.elasticManager.catIndices("producto_v");
     await this.evaluateTasksIncluster();
     await Utils.asyncForEach(countries, async country => {
-      const campaignList =
-        config.CAMPAIGNS_BY_COUNTRIES[country] ||
-        config.CAMPAIGNS_BY_COUNTRIES["DEFAULT"];
+      const campaignList = config.CAMPAIGNS_BY_COUNTRIES[country] || config.CAMPAIGNS_BY_COUNTRIES["DEFAULT"];
 
       for (let i = 0; i < config.PERSONALIZATION.length; i++) {
         const personalization = config.PERSONALIZATION[i];
         let promise = [];
+
         for (let j = 0; j < campaignList.length; j++) {
           const campaign = campaignList[j];
           const indexName = `${config.ELASTICSEARCH.INDEX_PATTERN}_${country.toLowerCase()}_${campaign}`;
           const newIndexName = `${config.ELASTICSEARCH.NEW_INDEX_PATTERN}_${country.toLowerCase()}_${campaign}_${personalization.toLowerCase()}`;
           const existIndex = indices.find(i => { return i.index === indexName; });
           const existNewIndex = indices.find(i => { return i.index === newIndexName; });
-          const startTime = new Date();
+
           if (existIndex && !existNewIndex) {
-            promise.push(this.elasticManager.reindex(indexName, newIndexName, personalization).then(res => {
-              return { indexName, newIndexName, startTime, res: res };
-            }));
+            const countPersonalization = await this.getCountByPersonalization(indexName, personalization);
+
+            if (countPersonalization.hits.total === 0) continue;
+
+            const startTime = new Date();
+              promise.push(this.elasticManager.reindex(indexName, newIndexName, personalization).then(res => {
+                return { indexName, newIndexName, startTime, res: res };
+              }));
           }
         }
 
@@ -70,12 +74,14 @@ module.exports = class {
             for (let i = 0; i < dataTask.length; i++) {
               const item = dataTask[i];
               const endTime = new Date();
-
-              await this.elasticManager.insertLog(item.indexName, item.newIndexName, item.startTime, item.taskId, endTime, true, item.res.task.status.total, "", false, "");
+              const timeString = Utils.nanoSecondsTotime(item.task.running_time_in_nanos);
+              await this.elasticManager.insertLog(item.indexName, item.newIndexName, item.startTime, item.taskId, endTime, true, item.res.task.status.total, timeString, false, "");
             }
           } else {
-            await Utils.backoff(config.DELAY);
+            await Utils.backoff(config.DELAY_MILISECONDS);
           }
+
+          console.log("in While completeTask:", completeTask);
         }
       }
     });
@@ -92,6 +98,7 @@ module.exports = class {
         const _source = item._source;
         const taskId = _source.taskId;
         const taskResponse = await this.evaluateTaskId(taskId);
+        const timeString = Utils.nanoSecondsTotime(taskResponse.task.running_time_in_nanos);
         await this.elasticManager.insertLog(
           _source.indexName,
           _source.newIndexName,
@@ -100,7 +107,7 @@ module.exports = class {
           new Date(),
           taskResponse.completed,
           _source.docs,
-          _source.executionTime,
+          timeString,
           _source.hasError,
           _source.exception
         );
@@ -121,9 +128,32 @@ module.exports = class {
         taskReturn = task;
         inWhile = !task.completed;
       } else {
-        await Utils.backoff(config.DELAY);
+        await Utils.backoff(config.DELAY_MILISECONDS);
       }
     }
     return taskReturn;
+  }
+
+  async getCountByPersonalization(indexName, personalization) {
+    const body = {
+      size: 0,
+      query: {
+        bool: {
+          must: [
+            {
+              term: {
+                "activo": true
+              }
+            },
+            {
+              term: {
+                "tipoPersonalizacion": personalization
+              }
+            }
+          ]
+        }
+      }
+    }
+    return await this.elasticManager.search(indexName, body);
   }
 };

@@ -1,5 +1,5 @@
 module.exports = {
-  DELAY: 30000,
+  DELAY_MILISECONDS: 60000,
   NAME_INDEX_LOG: "log_reindexacion",
   PERSONALIZATION: [
     "LAN",
