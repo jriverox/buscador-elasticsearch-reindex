@@ -80,7 +80,8 @@ module.exports = class {
     docs,
     executionTime,
     hasError,
-    exception
+    exception,
+    lastCheckTime = ""
   ) {
     let body = [];
     let item = {
@@ -102,7 +103,8 @@ module.exports = class {
           docs,
           executionTime,
           hasError,
-          exception
+          exception,
+          lastCheckTime
         },
         doc_as_upsert: true
       }
