@@ -1,21 +1,21 @@
 module.exports = {
-  DELAY_MILISECONDS: 60000,
+  DELAY_MILISECONDS: 30000,
   NAME_INDEX_LOG: "log_reindexacion",
   PERSONALIZATION: [
     "LAN",
-    "ODD",
-    "OPM",
-    "OPT",
     "LMG",
     "HV",
-    "SR",
-    "CAT",
     "LIQ",
+    "CAT",
+    "SR",
+    "OPM",
+    "OPT",
+    "ODD",
     "REV"
   ],
   ELASTICSEARCH: {
     INDEX_PATTERN: "producto_v2",
-    NEW_INDEX_PATTERN: "producto_v8",
+    NEW_INDEX_PATTERN: "producto_v3",
     CLUSTERS: [
       {
         ID: 1,

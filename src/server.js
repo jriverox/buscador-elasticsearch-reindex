@@ -9,16 +9,19 @@ module.exports = class {
   }
 
   async execJob() {
+    console.log("Iniciar execJob");
     const countries = this.elasticManager.getCluster().COUNTRIES;
     const indices = await this.elasticManager.catIndices("producto_v");
+    console.log("Evaluando tareas en procesos");
     await this.evaluateTasksIncluster();
+    console.log("Terminó evaluando tareas en proceso");
     await Utils.asyncForEach(countries, async country => {
       const campaignList = config.CAMPAIGNS_BY_COUNTRIES[country] || config.CAMPAIGNS_BY_COUNTRIES["DEFAULT"];
 
       for (let i = 0; i < config.PERSONALIZATION.length; i++) {
         const personalization = config.PERSONALIZATION[i];
         let promise = [];
-
+        console.log("inicio de:", personalization);
         for (let j = 0; j < campaignList.length; j++) {
           const campaign = campaignList[j];
           const indexName = `${config.ELASTICSEARCH.INDEX_PATTERN}_${country.toLowerCase()}_${campaign}`;
@@ -28,7 +31,7 @@ module.exports = class {
 
           if (existIndex && !existNewIndex) {
             const countPersonalization = await this.getCountByPersonalization(indexName, personalization);
-
+            console.log(`Contador personalization: ${personalization}, campaña: ${campaign}, count: ${countPersonalization.hits.total}`);
             if (countPersonalization.hits.total === 0) continue;
 
             const startTime = new Date();
@@ -39,49 +42,50 @@ module.exports = class {
         }
 
         if (promise.length === 0) continue;
-
+        console.log(`Ejecutando ${promise.length} promesas`);
         const dataReindex = await Promise.all(promise);
 
-        promise = [];
-
+        let arrayTasks = [];
         for (let i = 0; i < dataReindex.length; i++) {
           const item = dataReindex[i];
-
           await this.elasticManager.insertLog(item.indexName, item.newIndexName, item.startTime, item.res.task, "", false, 0, "", false, "");
-
-          promise.push(this.elasticManager.tasksGet(item.res.task).then(res => {
-            return {
-              indexName: item.indexName,
-              newIndexName: item.newIndexName,
-              startTime: item.startTime,
-              taskId: item.res.task,
-              res: res
-            };
-          }));
+          arrayTasks.push({
+            indexName: item.indexName,
+            newIndexName: item.newIndexName,
+            startTime: item.startTime,
+            taskId: item.res.task,
+          });
         }
 
         let completeTask = true;
+        let incremet = 0;
 
         while (completeTask) {
-          const dataTask = await Promise.all(promise);
+          promise = [];
           let arrayBool = [];
-          for (let i = 0; i < dataTask.length; i++) {
-            const item = dataTask[i];
-            arrayBool.push(item.res.completed);
-          }
-          if (arrayBool.every(x => x)) {
-            completeTask = false;
-            for (let i = 0; i < dataTask.length; i++) {
-              const item = dataTask[i];
-              const endTime = new Date();
-              const timeString = Utils.nanoSecondsTotime(item.task.running_time_in_nanos);
-              await this.elasticManager.insertLog(item.indexName, item.newIndexName, item.startTime, item.taskId, endTime, true, item.res.task.status.total, timeString, false, "");
-            }
-          } else {
-            await Utils.backoff(config.DELAY_MILISECONDS);
+
+          for (let i = 0; i < arrayTasks.length; i++) {
+            const item = arrayTasks[i];
+            const getTask = await this.elasticManager.tasksGet(item.taskId);
+            arrayBool.push(getTask.completed);
+            item.total = getTask.task.status.total;
+            item.running_time_in_nanos = getTask.task.running_time_in_nanos
+            console.log(`taskId: ${item.taskId} completed: ${getTask.completed}`);
           }
 
-          console.log("in While completeTask:", completeTask);
+          if (arrayBool.every(x => x)) {
+            completeTask = false;
+            for (let i = 0; i < arrayTasks.length; i++) {
+              const item = arrayTasks[i];
+              const endTime = new Date();
+              const timeString = Utils.nanoSecondsTotime(item.running_time_in_nanos);
+              await this.elasticManager.insertLog(item.indexName, item.newIndexName, item.startTime, item.taskId, endTime, true, item.total, timeString, false, "");
+            }
+            console.log('Se termino proceso de:', personalization);
+          } else {
+            await Utils.backoff(config.DELAY_MILISECONDS);
+            console.log("in While bucle", incremet++);
+          }
         }
       }
     });
