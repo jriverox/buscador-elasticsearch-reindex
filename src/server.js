@@ -1,6 +1,9 @@
 const ElasticManager = require("./elasticManager");
 const Utils = require("./utils");
-const config = require("../config");
+const yenv = require("yenv");
+//const config = require("../config");
+
+const config = yenv();
 
 module.exports = class {
   constructor(clusterId) {
@@ -139,7 +142,7 @@ module.exports = class {
         taskReturn = task;
         inWhile = !task.completed;
       } else {
-        // for 
+        // for
         await this.elasticManager.insertLog(
           _source.indexName,
           _source.newIndexName,
