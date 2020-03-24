@@ -21,6 +21,7 @@ module.exports = class {
       for (let i = 0; i < config.PERSONALIZATION.length; i++) {
         const personalization = config.PERSONALIZATION[i];
         let promise = [];
+        console.log("\n------------------------------------------");
         console.log("inicio de:", personalization);
         for (let j = 0; j < campaignList.length; j++) {
           const campaign = campaignList[j];
@@ -73,17 +74,23 @@ module.exports = class {
             console.log(`taskId: ${item.taskId} completed: ${getTask.completed}`);
           }
 
+          const lastCheckTime = new Date();
+
           if (arrayBool.every(x => x)) {
             completeTask = false;
             for (let i = 0; i < arrayTasks.length; i++) {
               const item = arrayTasks[i];
               const endTime = new Date();
               const timeString = Utils.nanoSecondsTotime(item.running_time_in_nanos);
-              await this.elasticManager.insertLog(item.indexName, item.newIndexName, item.startTime, item.taskId, endTime, true, item.total, timeString, false, "");
+              await this.elasticManager.insertLog(item.indexName, item.newIndexName, item.startTime, item.taskId, endTime, true, item.total, timeString, false, "", lastCheckTime);
             }
             console.log('Se termino proceso de:', personalization);
           } else {
             await Utils.backoff(config.DELAY_MILISECONDS);
+            for (let i = 0; i < arrayTasks.length; i++) {
+              const item = arrayTasks[i];
+              await this.elasticManager.insertLog(item.indexName, item.newIndexName, item.startTime, item.taskId, "", false, 0, "", false, "", lastCheckTime);
+            }
             console.log("in While bucle", incremet++);
           }
         }
@@ -100,8 +107,7 @@ module.exports = class {
       );
       await Utils.asyncForEach(response.hits.hits, async item => {
         const _source = item._source;
-        const taskId = _source.taskId;
-        const taskResponse = await this.evaluateTaskId(taskId);
+        const taskResponse = await this.evaluateTaskId(_source);
         const timeString = Utils.nanoSecondsTotime(taskResponse.task.running_time_in_nanos);
         await this.elasticManager.insertLog(
           _source.indexName,
@@ -113,7 +119,8 @@ module.exports = class {
           _source.docs,
           timeString,
           _source.hasError,
-          _source.exception
+          _source.exception,
+          new Date()
         );
       });
     } catch (error) {
@@ -123,15 +130,29 @@ module.exports = class {
     }
   }
 
-  async evaluateTaskId(taskId) {
+  async evaluateTaskId(_source) {
     let inWhile = true;
     let taskReturn = {};
     while (inWhile) {
-      let task = await this.elasticManager.tasksGet(taskId);
+      let task = await this.elasticManager.tasksGet(_source.taskId);
       if (task.completed) {
         taskReturn = task;
         inWhile = !task.completed;
       } else {
+        // for 
+        await this.elasticManager.insertLog(
+          _source.indexName,
+          _source.newIndexName,
+          _source.startTime,
+          _source.taskId,
+          _source.endTime,
+          _source.completed,
+          _source.docs,
+          _source.executionTime,
+          _source.hasError,
+          _source.exception,
+          new Date()
+        );
         await Utils.backoff(config.DELAY_MILISECONDS);
       }
     }
