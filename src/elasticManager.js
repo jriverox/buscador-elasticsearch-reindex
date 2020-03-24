@@ -1,6 +1,5 @@
 const elasticClient = require("elasticsearch");
 const yenv = require("yenv");
-//const config = require("../config");
 
 const config = yenv();
 

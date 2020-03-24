@@ -1,7 +1,6 @@
 const ElasticManager = require("./elasticManager");
 const Utils = require("./utils");
 const yenv = require("yenv");
-//const config = require("../config");
 
 const config = yenv();
 
