@@ -1,14 +1,12 @@
 const Server = require("./server");
-const argv = require('yargs')
-  .usage('Usage: $0 <command> [options]')
-  .command('cluster', 'numero del cluster')
-  .example('$0 cluster 1', 'cluster en el que se ejecutará la reindexación')
-  .alias('c', 'cluster')
-  .demandOption(['c']).argv;
 
 (async () => {
-  const clusterId = argv.cluster;
-  const server = new Server(clusterId);
+  const clusterId = process.argv[process.argv.length - 1];
+  console.log("Iniciando en el cluster:", clusterId);
+
+  if(!clusterId || isNaN(clusterId) || parseInt(clusterId) < 1 || parseInt(clusterId) > 3)
+    throw new Error("Se esperaba el parametro cluster y debe ser un numero entre 1 y 3");
+  const server = new Server(parseInt(clusterId));
 
   await server.execJob();
 })();

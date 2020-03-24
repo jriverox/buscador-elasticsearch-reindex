@@ -1,8 +1,8 @@
 const elasticClient = require("elasticsearch");
-const config = require("../config");
 const yenv = require("yenv");
+//const config = require("../config");
 
-const env = yenv();
+const config = yenv();
 
 module.exports = class {
   constructor(clusterId) {
