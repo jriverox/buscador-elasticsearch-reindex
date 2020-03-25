@@ -20,9 +20,12 @@ const config = yenv();
   const newIndexPattern = config.ELASTICSEARCH.NEW_INDEX_PATTERN;
   let detailedReport = [];
   let reportByCountry = [];
-  let grandTotal = [];
+  let docsSourceTotal = 0;
+  let docsTargetTotal = 0;
 
   for (const country of countries) {
+    let docsSourceByCountry = 0;
+    let docsTargetByCountry = 0;
     const campaigns = config.CAMPAIGNS_BY_COUNTRIES[country] || config.CAMPAIGNS_BY_COUNTRIES["DEFAULT"];
     for (const campaign of campaigns) {
       let currentIndexName = `${indexPattern}_${country.toLowerCase()}_${campaign}`;
@@ -53,12 +56,32 @@ const config = yenv();
                   "Cant. Destino": numeral(docsTarget).format('0,0'),
                   Faltante:  numeral(docsSource - docsTarget).format('0,0')
                 };
+                docsSourceByCountry += docsSource;
+                docsTargetByCountry += docsTarget;
                 detailedReport.push(reportItem);
             }
           }
       }
     }
-  }
+    docsSourceTotal += docsSourceByCountry;
+    docsTargetTotal += docsTargetByCountry;
 
+    reportByCountry.push({
+      Pais: country,
+      "Cant. Origen": numeral(docsSourceByCountry).format('0,0'),
+      "Cant. Destino": numeral(docsTargetByCountry).format('0,0'),
+      Faltante: numeral(docsTargetByCountry - docsTargetByCountry).format('0,0')
+      })
+  }
+  console.log("Detallado");
   console.table(detailedReport);
+  console.log("Por Pais");
+  console.table(reportByCountry);
+  console.log("Total");
+
+  console.table([{
+    "Cant. Origen": numeral(docsSourceTotal).format('0,0'),
+    "Cant. Destino": numeral(docsTargetTotal).format('0,0'),
+    Faltante: numeral(docsSourceTotal - docsTargetTotal).format('0,0')
+  }]);
 })();
