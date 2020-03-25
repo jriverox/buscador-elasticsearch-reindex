@@ -19,11 +19,11 @@ module.exports = class {
     console.log("Terminó evaluando tareas en proceso");
     await Utils.asyncForEach(countries, async country => {
       const campaignList = config.CAMPAIGNS_BY_COUNTRIES[country] || config.CAMPAIGNS_BY_COUNTRIES["DEFAULT"];
-
+      console.log(`\n=================================> ${country} <===============================================\n`);
       for (let i = 0; i < config.PERSONALIZATION.length; i++) {
         const personalization = config.PERSONALIZATION[i];
         let promise = [];
-        console.log("\n------------------------------------------");
+        console.log("------------------------------------------");
         console.log("inicio de:", personalization);
         for (let j = 0; j < campaignList.length; j++) {
           const campaign = campaignList[j];
@@ -155,6 +155,7 @@ module.exports = class {
           _source.exception,
           new Date()
         );
+        console.log(`Verificando task: ${_source.taskId} newIndexName: ${_source.newIndexName}`);
         await Utils.backoff(config.DELAY_MILISECONDS);
       }
     }
