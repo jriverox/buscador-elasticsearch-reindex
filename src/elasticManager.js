@@ -113,4 +113,23 @@ module.exports = class {
     body.push(item.doc);
     return await this.client.bulk({ body });
   }
+
+  async aggregate(currentIndexName) {
+    return await this.client.search({
+      size: 0,
+      index: currentIndexName,
+      filter_path: "aggregations.tipoPersonalizacion.buckets,hits.total",
+      body:{
+          "aggs" : {
+              "tipoPersonalizacion" : {
+                  "terms": {
+                    "field": "tipoPersonalizacion",
+                    "size": 20,
+                    "order" : { "_count" : "asc" }
+                  }
+              }
+          }
+      }
+  });
+  }
 };
