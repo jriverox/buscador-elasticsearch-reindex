@@ -2,7 +2,7 @@ const yenv = require("yenv");
 const ElasticManager = require("./elasticManager");
 const Utils = require("./utils");
 const numeral = require("numeral");
-
+const moment = require("moment");
 const config = yenv();
 
 (async () => {
@@ -84,4 +84,5 @@ const config = yenv();
     "Cant. Destino": numeral(docsTargetTotal).format('0,0'),
     Faltante: numeral(docsSourceTotal - docsTargetTotal).format('0,0')
   }]);
+  console.log(moment().format('lll'));
 })();

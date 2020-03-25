@@ -15,6 +15,7 @@
   "license": "MIT",
   "dependencies": {
     "elasticsearch": "^16.6.0",
+    "moment": "^2.24.0",
     "numeral": "^2.0.6",
     "yenv": "^2.1.1"
   }
