@@ -2,7 +2,7 @@ const yenv = require("yenv");
 const ElasticManager = require("./elasticManager");
 const Utils = require("./utils");
 const numeral = require("numeral");
-
+const moment = require("moment");
 const config = yenv();
 
 (async () => {
@@ -19,13 +19,9 @@ const config = yenv();
   const indexPattern = config.ELASTICSEARCH.INDEX_PATTERN;
   const newIndexPattern = config.ELASTICSEARCH.NEW_INDEX_PATTERN;
   let detailedReport = [];
-  let reportByCountry = [];
-  let docsSourceTotal = 0;
-  let docsTargetTotal = 0;
 
   for (const country of countries) {
-    let docsSourceByCountry = 0;
-    let docsTargetByCountry = 0;
+
     const campaigns = config.CAMPAIGNS_BY_COUNTRIES[country] || config.CAMPAIGNS_BY_COUNTRIES["DEFAULT"];
     for (const campaign of campaigns) {
       let currentIndexName = `${indexPattern}_${country.toLowerCase()}_${campaign}`;
@@ -52,36 +48,108 @@ const config = yenv();
                   Pais: country,
                   Campania: campaign,
                   Palanca: personalization,
-                  "Cant. Origen": numeral(docsSource).format('0,0'),
-                  "Cant. Destino": numeral(docsTarget).format('0,0'),
-                  Faltante:  numeral(docsSource - docsTarget).format('0,0')
+                  CantOrigen: docsSource,
+                  CantDestino: docsTarget,
+                  Faltante:  docsSource - docsTarget
                 };
-                docsSourceByCountry += docsSource;
-                docsTargetByCountry += docsTarget;
                 detailedReport.push(reportItem);
             }
           }
       }
     }
-    docsSourceTotal += docsSourceByCountry;
-    docsTargetTotal += docsTargetByCountry;
-
-    reportByCountry.push({
-      Pais: country,
-      "Cant. Origen": numeral(docsSourceByCountry).format('0,0'),
-      "Cant. Destino": numeral(docsTargetByCountry).format('0,0'),
-      Faltante: numeral(docsTargetByCountry - docsTargetByCountry).format('0,0')
-      })
   }
-  console.log("Detallado");
-  console.table(detailedReport);
-  console.log("Por Pais");
-  console.table(reportByCountry);
-  console.log("Total");
 
-  console.table([{
-    "Cant. Origen": numeral(docsSourceTotal).format('0,0'),
-    "Cant. Destino": numeral(docsTargetTotal).format('0,0'),
-    Faltante: numeral(docsSourceTotal - docsTargetTotal).format('0,0')
-  }]);
+  printDetails(detailedReport);
+  printByCountry(countries, detailedReport);
+  printTotal(detailedReport);
+
+  console.log("Reporte Generado:", moment().format('lll'));
 })();
+
+const printDetails = (details) => {
+  console.log("Detallado");
+  const result = details.map(x => {
+    return {
+      Pais: x.Pais,
+      Indice: x.Indice,
+      Campania: x.Campania,
+      Palanca: x.Palanca,
+      CantOrigen: numeral(x.CantOrigen).format('0,0'),
+      CantDestino: numeral(x.CantDestino).format('0,0'),
+      Faltante: numeral(x.Faltante).format('0,0'),
+    }
+  })
+  console.table(result);
+}
+
+const printByCountry = (countries, details) => {
+
+  console.log("Por Pais");
+
+  console.table(groupReportByCountry(countries, details));
+}
+
+const  groupReportByCountry = (countries, data) => {
+  let result = [];
+  countries.forEach(country => {
+    let item = data
+      .filter(x => x.Pais === country)
+      .map(x => {
+        return {
+          Pais: x.Pais,
+          CantOrigen: x.CantOrigen,
+          CantDestino: x.CantDestino}
+      })
+      .reduce((accumulator, current) => {
+        const origen = accumulator.CantOrigen + current.CantOrigen;
+        const destino = accumulator.CantDestino + current.CantDestino;
+
+        return {
+          Pais: current.Pais,
+          CantOrigen: origen,
+          CantDestino: destino,
+          Faltante: origen - destino
+        }
+      });
+    result.push(item);
+  })
+  return result.map(x => {
+    return {
+      Pais: x.Pais,
+      CantOrigen: numeral(x.CantOrigen).format('0,0'),
+      CantDestino: numeral(x.CantDestino).format('0,0'),
+      Faltante: numeral(x.CantOrigen - x.CantDestino).format('0,0')
+    }
+  });
+}
+
+const grandTotal = (details) => {
+  return details.reduce((accumulator, current) => {
+    const origen = accumulator.CantOrigen + current.CantOrigen;
+    const destino = accumulator.CantDestino + current.CantDestino;
+    const faltante = origen - destino;
+    return {
+      CantOrigen: origen,
+      CantDestino: destino,
+      Faltante: faltante
+      }
+  });
+}
+
+const printTotal = (details) => {
+  console.log("Total");
+  const grandTotalArray = [];
+  const totals = grandTotal(details);
+  const avance = (totals.CantDestino / totals.CantOrigen) * 100;
+  totals.CantOrigen = numeral(totals.CantOrigen).format('0,0');
+  totals.CantDestino = numeral(totals.CantDestino).format('0,0');
+  totals.Faltante = numeral(totals.Faltante).format('0,0');
+
+  grandTotalArray.push(totals);
+  console.table(grandTotalArray);
+  console.log("---------------------------");
+  console.log("Avance:", avance.toFixed(2), "%");
+  console.log("---------------------------");
+}
+
+
