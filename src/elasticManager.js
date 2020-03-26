@@ -37,6 +37,14 @@ module.exports = class {
     });
   }
 
+  async count(indexName, body) {
+    return await this.client.count({
+      index: indexName,
+      type: "_doc",
+      body
+    });
+  }
+
   async catIndices(indexPattern) {
     return await this.client.cat.indices({
       index: `${indexPattern}*`,
@@ -120,6 +128,9 @@ module.exports = class {
       index: currentIndexName,
       filter_path: "aggregations.tipoPersonalizacion.buckets,hits.total",
       body:{
+          "query":{
+            "term": {"activo": true}
+          },
           "aggs" : {
               "tipoPersonalizacion" : {
                   "terms": {
